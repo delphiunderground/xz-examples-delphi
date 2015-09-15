@@ -5,6 +5,9 @@ It should work with almost all versions of Delphi and even with
 Lazarus/FreePascal. However, in older versions of Delphi, the ErrOutput
 variable is not defined.
 
+Currently, I do not care of linux compatibility because I had troubles
+with command line FreePascal compiler and when generating Makefile.
+
 Any suggestions or improvements are welcome.
 Send them to vincent.hardy.be@gmail.com
 
