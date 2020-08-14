@@ -1,6 +1,6 @@
 (*
- * liblzma Data Compression Interface Unit
- * Copyright (C) 2015 Vincent Hardy <vincent.hardy.be@gmail.com>
+ * XZ stream management Unit
+ * Copyright (C) 2015-2020 Vincent Hardy <vincent.hardy@linuxunderground.be>
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version
@@ -13,15 +13,12 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this software; if not, see
- * http://www.gnu.org/licenses/.
+ * https://www.gnu.org/licenses/.
  *)
 
 unit XZ;
 
 interface
-
-uses
-  windows, Sysutils, Classes;
 
 {$IFNDEF VER90}
 {$IFNDEF VER93}
@@ -39,164 +36,10 @@ uses
 {$ENDIF}
 {$ENDIF}
 
+uses
+  SysUtils, Classes, LibLZMA;
+
 type
-  uint32_t = longword;
-  uint64_t = Int64;
-  p_uint64_t = ^uint64_t;
-
-  //size_t is also defined in delphi XE
-  //C:\Program Files (x86)\Embarcadero\RAD Studio\10.0\source\rtl\posix\Posix.SysTypes.pas
-  {$IFDEF WIN64}
-  size_t = Int64;
-  {$ELSE}
-  size_t = integer;
-  {$ENDIF}
-
-  lzma_ret = integer;
-  lzma_action = integer;
-  lzma_check = integer;
-
-  lzma_reserved_enum = integer;
-  
-{*
- * Custom functions for memory handling.
- * See also :
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  TAlloc = function(opaque: Pointer; Items, Size: size_t): Pointer; cdecl;
-  TFree = procedure(opaque, Block: Pointer); cdecl;
-
-  lzma_allocator = packed record
-    XZalloc : TAlloc;
-    XZfree : TFree;
-    opaque : pointer;
-  end;
-
-  p_lzma_allocator = ^lzma_allocator;
-
-{* 
- * Passing data to and from liblzma.
- * See also :
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  lzma_stream = packed record
-    next_in : PChar;         //Pointer to the next input byte.
-    avail_in : size_t;       //Number of available input bytes in next_in.
-    total_in : uint64_t;     //Total number of bytes read by liblzma.
-
-    next_out : PChar;        //Pointer to the next output position.
-    avail_out : size_t;      //Amount of free space in next_out.
-    total_out : uint64_t;    //Total number of bytes written by liblzma.
-
-    //Custom memory allocation functions
-    //In most cases this is nil which makes liblzma use
-    //the standard malloc() and free().
-    allocator : p_lzma_allocator; //pointer;
-
-    //Internal state is not visible to applications.
-    internal : pointer;
-
-    //Reserved space to allow possible future extensions without
-    //breaking the ABI. Excluding the initialization of this structure,
-    //you should not touch these, because the names of these variables
-    //may change.
-    reserved_ptr1 : pointer;
-    reserved_ptr2 : pointer;
-    reserved_ptr3 : pointer;
-    reserved_ptr4 : pointer;
-    reserved_int1 : uint64_t;
-    reserved_int2 : uint64_t;
-    reserved_int3 : size_t;
-    reserved_int4 : size_t;
-    reserved_enum1 : lzma_reserved_enum;
-    reserved_enum2 : lzma_reserved_enum;
-  end;
-
-  p_lzma_stream = ^lzma_stream;
-
-
-{*
- * Initialize .xz Stream encoder using a preset number.
- * See also :
- * lzma/container.h (src/liblzma/api/lzma/container.h in the source package
- * or e.g. c:\xz\include\lzma\container.h depending on the install prefix).
- *}
-  Tf_lzma_easy_encoder = function(
-    strm: p_lzma_stream;
-    preset: uint32_t;    //Compression preset to use.
-    check: lzma_check    //Type of the integrity check to calculate from uncompressed data.
-    ): lzma_ret; cdecl;
-
-{*
- * Initialize .xz Stream decoder
- * See also :
- * lzma/container.h (src/liblzma/api/lzma/container.h in the source package
- * or e.g. c:\xz\include\lzma\container.h depending on the install prefix).
- *}
-  Tf_lzma_stream_decoder = function(
-    strm: p_lzma_stream;
-    memlimit: uint64_t;
-    flags: uint32_t
-    ): lzma_ret; cdecl;
-
-{*
- * Encode or decode data.
- *
- * Once the lzma_stream has been successfully initialized (e.g. with
- * lzma_stream_encoder()), the actual encoding or decoding is done
- * using this function. The application has to update strm->next_in,
- * strm->avail_in, strm->next_out, and strm->avail_out to pass input
- * to and get output from liblzma.
- *
- * See also :
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  Tf_lzma_code = function(
-    strm: p_lzma_stream;
-    action: lzma_action
-    ): lzma_ret; cdecl;
-{*
- * Free memory allocated for the coder data structures
- * See also :
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  Tf_lzma_end = procedure(
-    pstrm: p_lzma_stream
-    ); cdecl;
-
-
-{*
- * lzma/container.h (src/liblzma/api/lzma/container.h in the source package
- * or e.g. c:\xz\include\lzma\container.h depending on the install prefix).
- *}
-  Tf_lzma_easy_buffer_encode = function(
-    preset: uint32_t;    //Compression preset to use.
-    check: lzma_check;   //Type of the integrity check to calculate from uncompressed data.
-    allocator: p_lzma_allocator;
-    in_: PChar;
-    in_size: size_t;
-    out_: PChar;
-    out_pos: pointer;
-    out_size: size_t
-    ): lzma_ret; cdecl;
-  
-  tf_lzma_stream_buffer_decode = function(
-    memlimit: p_uint64_t;
-    flags: uint32_t;
-    allocator: p_lzma_allocator;
-    in_: PChar;
-    in_pos: pointer;
-    in_size: size_t;
-    out_: PChar;
-    out_pos: pointer;
-    out_size: size_t
-    ): lzma_ret; cdecl;
-
-
   // Abstract ancestor class
   TCustomXZStream = class(TStream)
   private
@@ -213,7 +56,7 @@ type
     procedure Progress(Sender: TObject); dynamic;
     property OnProgress: TNotifyEvent read FOnProgress write FOnProgress;
     constructor Create(Strm: TStream);
-  public  
+  public
     destructor Destroy; override;
   end;
 
@@ -239,7 +82,9 @@ type
   TXZCompressionStream = class(TCustomXZStream)
   private
   public
-    constructor Create(preset:uint32_t; Dest: TStream);
+    constructor Create(Dest: TStream; preset:uint32_t; check: lzma_check=LZMA_CHECK_CRC64);
+    constructor Create_custom(Dest: TStream; filters:pointer; check: lzma_check=LZMA_CHECK_CRC64);
+    constructor Create_mt(Dest: TStream; mt:pointer);
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
@@ -285,97 +130,22 @@ type
   EXZCompressionError = class(EXZError);
   EXZDecompressionError = class(EXZError);
 
- 
-var
-  lzmaHandle:THandle=0;
-
-  plzma_easy_encoder:pointer;          //-> Tf_lzma_easy_encoder;
-  plzma_stream_decoder:pointer;        //-> Tf_lzma_stream_decoder;
-  plzma_code:pointer;                  //-> Tf_lzma_code;
-  plzma_end:pointer;                   //-> Tf_lzma_end;
-
-  plzma_easy_buffer_encode:pointer;    //-> Tf_lzma_easy_buffer_encode;
-  plzma_stream_buffer_decode:pointer;  //-> Tf_lzma_stream_buffer_decode;
-
-  
-function LoadLzmaDLL:boolean;
-
+function lzma_cputhreads: uint32_t;
+function lzma_lzma_preset(options: pointer; preset: uint32_t): boolean;
 
 implementation
 
-
-const
-  LZMA_DLL = 'liblzma.dll';  //-> http://tukaani.org/xz/xz-5.2.0-windows.zip
-
-{*
- * Return values used by several functions in liblzma
- * These values are documented in
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  LZMA_OK = 0;
-  LZMA_STREAM_END = 1;
-  LZMA_NO_CHECK = 2;
-  LZMA_UNSUPPORTED_CHECK = 3;
-  LZMA_GET_CHECK = 4;
-  LZMA_MEM_ERROR = 5;
-  LZMA_MEMLIMIT_ERROR = 6;
-  LZMA_FORMAT_ERROR = 7;
-  LZMA_OPTIONS_ERROR = 8;
-  LZMA_DATA_ERROR = 9;
-  LZMA_BUF_ERROR = 10;
-  LZMA_PROG_ERROR = 11;
-
-{*
- * Type of the integrity check (Check ID)
- * This is documented in
- * lzma/check.h (src/liblzma/api/lzma/check.h in the source package
- * or e.g. c:\xz\include\lzma\check.h depending on the install prefix).
- *}
-  LZMA_CHECK_NONE = 0;
-  LZMA_CHECK_CRC32 = 1;
-  LZMA_CHECK_CRC64 = 4;
-  LZMA_CHECK_SHA256 = 10;
-
-{*
- * The 'action' argument for lzma_code()
- * This is documented in
- * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
- * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
- *}
-  LZMA_RUN = 0;
-  LZMA_SYNC_FLUSH = 1;
-  LZMA_FULL_FLUSH = 2;
-  LZMA_FULL_BARRIER = 4;
-  LZMA_FINISH = 3;
-
-{* 
- * Decoding
- *}  
-  LZMA_CONCATENATED = $08;
-
-function LoadLzmaDLL:boolean;
+function lzma_cputhreads: uint32_t;
 begin
-  if lzmaHandle=0 then  //Dll pas encore chargée
+  result:=Tf_lzma_cputhreads(plzma_cputhreads);
+end;
+
+function lzma_lzma_preset(options: pointer; preset: uint32_t): boolean;
+begin
+  if Tf_lzma_lzma_preset(plzma_lzma_preset)(options, preset)<>LZMA_OK then
   begin
-    lzmaHandle := LoadLibrary(LZMA_DLL);
-    Result:=lzmaHandle>=32;
-    if Result then
-    begin
-      plzma_easy_encoder := GetProcAddress(lzmaHandle,'lzma_easy_encoder');
-      Assert(plzma_easy_encoder <> nil);
-      plzma_stream_decoder := GetProcAddress(lzmaHandle,'lzma_stream_decoder');
-      Assert(plzma_stream_decoder <> nil);
-      plzma_code := GetProcAddress(lzmaHandle,'lzma_code');
-      Assert(plzma_code <> nil);
-      plzma_end := GetProcAddress(lzmaHandle,'lzma_end');
-      Assert(plzma_end <> nil);
-      plzma_easy_buffer_encode := GetProcAddress(lzmaHandle,'lzma_easy_buffer_encode');
-      Assert(plzma_easy_buffer_encode <> nil);
-      plzma_stream_buffer_decode := GetProcAddress(lzmaHandle,'lzma_stream_buffer_decode');
-      Assert(plzma_stream_buffer_decode <> nil);
-    end;
-  end else result:=true;
+    raise Exception.CreateFmt('Unsupported preset, possibly a bug',[]);
+  end else Result:=true;;
 end;
 
 function CCheck(code: Integer): Integer;
@@ -426,8 +196,6 @@ begin
   inherited Create;
   FStrm := Strm;
   FStrmPos := Strm.Position;
-  if not LoadLzmaDLL then
-    raise Exception.CreateFmt('%s not found.',[LZMA_DLL]); //!!
   //When you declare an instance of lzma_stream, you can immediately
   //initialize it so that initialization functions know that no memory
   //has been allocated yet. Delphi does this for us with FXZRec.
@@ -440,46 +208,55 @@ end;
 
 destructor TCustomXZStream.Destroy;
 begin
-  if lzmaHandle>=32 then
-  begin
-    FreeLibrary(lzmaHandle);
-    lzmaHandle:=0;
-  end;
   inherited Destroy;
 end;
 
 
 // TXZCompressionStream
 
-constructor TXZCompressionStream.Create(preset:uint32_t; Dest: TStream);
+constructor TXZCompressionStream.Create(Dest: TStream; preset:uint32_t; check: lzma_check=LZMA_CHECK_CRC64);
 begin
   inherited Create(Dest);
   FXZRec.next_out := FBuffer;
   FXZRec.avail_out := sizeof(FBuffer);
-  CCheck(Tf_lzma_easy_encoder(plzma_easy_encoder)(@FXZRec, preset or $80000000, LZMA_CHECK_CRC64));
+  CCheck(Tf_lzma_easy_encoder(plzma_easy_encoder)(@FXZRec, preset, check));
+end;
+
+constructor TXZCompressionStream.Create_custom(Dest: TStream; filters:pointer; check: lzma_check=LZMA_CHECK_CRC64);
+begin
+  inherited Create(Dest);
+  FXZRec.next_out := FBuffer;
+  FXZRec.avail_out := sizeof(FBuffer);
+  CCheck(Tf_lzma_stream_encoder(plzma_stream_encoder)(@FXZRec, filters, check));
+end;
+
+constructor TXZCompressionStream.Create_mt(Dest: TStream; mt:pointer);
+begin
+  inherited Create(Dest);
+  FXZRec.next_out := FBuffer;
+  FXZRec.avail_out := sizeof(FBuffer);
+  CCheck(Tf_lzma_stream_encoder_mt(plzma_stream_encoder_mt)(@FXZRec, mt));
 end;
 
 destructor TXZCompressionStream.Destroy;
 begin
-  if lzmaHandle>=32 then
-  begin
-    FXZRec.next_in := nil;
-    FXZRec.avail_in := 0;
-    try
-      if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
-      while (CCheck(Tf_lzma_code(plzma_code)(@FXZRec,LZMA_FINISH)) <> LZMA_STREAM_END)
-        and (FXZRec.avail_out = 0) do
-      begin
-        FStrm.WriteBuffer(FBuffer, sizeof(FBuffer));
-        FXZRec.next_out := FBuffer;
-        FXZRec.avail_out := sizeof(FBuffer);
-      end;
-      if FXZRec.avail_out < sizeof(FBuffer) then
-        FStrm.WriteBuffer(FBuffer, sizeof(FBuffer) - FXZRec.avail_out);
-    finally
-      Tf_lzma_end(plzma_end)(@FXZRec);
+  FXZRec.next_in := nil;
+  FXZRec.avail_in := 0;
+  try
+    if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
+    while (CCheck(Tf_lzma_code(plzma_code)(@FXZRec,LZMA_FINISH)) <> LZMA_STREAM_END)
+      and (FXZRec.avail_out = 0) do
+    begin
+      FStrm.WriteBuffer(FBuffer, sizeof(FBuffer));
+      FXZRec.next_out := FBuffer;
+      FXZRec.avail_out := sizeof(FBuffer);
     end;
+    if FXZRec.avail_out < sizeof(FBuffer) then
+      FStrm.WriteBuffer(FBuffer, sizeof(FBuffer) - FXZRec.avail_out);
+  finally
+    Tf_lzma_end(plzma_end)(@FXZRec);
   end;
+
   inherited Destroy;
 end;
 
@@ -534,12 +311,12 @@ begin
   inherited Create(Source);
   FXZRec.next_in := FBuffer;
   FXZRec.avail_in := 0;
-  DCheck(Tf_lzma_stream_decoder(plzma_stream_decoder)(@FXZRec, high(int64), LZMA_CONCATENATED));
+  DCheck(Tf_lzma_stream_decoder(plzma_stream_decoder)(@FXZRec, Int64(-1), LZMA_CONCATENATED));
 end;
 
 destructor TXZDecompressionStream.Destroy;
 begin
-  if lzmaHandle>=32 then Tf_lzma_end(plzma_end)(@FXZRec);
+  Tf_lzma_end(plzma_end)(@FXZRec);
   inherited Destroy;
 end;
 

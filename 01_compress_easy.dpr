@@ -1,6 +1,6 @@
 (*
  * xz-examples-delphi
- * Copyright (C) 2015 Vincent Hardy <vincent.hardy.be@gmail.com>
+ * Copyright (C) 2015-2020 Vincent Hardy <vincent.hardy@linuxunderground.be>
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version
@@ -13,15 +13,22 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this software; if not, see
- * http://www.gnu.org/licenses/.
+ * https://www.gnu.org/licenses/.
  *)
+
+// Compress from stdin to stdout in multi-call mode
+//
+// Usage:      01_compress_easy PRESET < INFILE > OUTFILE
+//
+// Example:    01_compress_easy 6 < foo > foo.xz
+
 
 {$APPTYPE CONSOLE}
 program compress_easy;
 
 uses
-  Windows,Classes,
-  XZ;
+  SysUtils, Windows, Classes,
+  LibLZMA, XZ;
 
 
 procedure show_usage_and_exit;
@@ -32,7 +39,7 @@ begin
   halt(1);
 end;
 
-function get_preset:Longword;
+function get_preset:Cardinal;
 begin
   // One argument whose first char must be 0-9.
   if (paramcount<>1) or (paramstr(1)[1]<'0') or (paramstr(1)[1]>'9')
@@ -46,26 +53,31 @@ begin
   begin
     if (paramstr(1)[2]<>'e') and (length(paramstr(1))<>2)
     then
-      show_usage_and_exit;
-
-    result:=result or $80000000;  //LZMA_PRESET_EXTREME;
+      show_usage_and_exit
+    else
+      result:=result or LZMA_PRESET_EXTREME;
   end;
 end;
 
 var
   StdIn,StdOut:THandleStream;
   Comp: TXZCompressionStream;
-  preset:longword;
+  preset:Cardinal;
 begin
-  preset:=get_preset;
-  StdIn := THandleStream.Create(GetStdHandle(STD_INPUT_HANDLE));
-  StdOut := THandleStream.Create(GetStdHandle(STD_OUTPUT_HANDLE));
-  Comp := TXZCompressionStream.Create(preset, StdOut);
-  try
-    Comp.CopyFrom(StdIn, 0);
-  finally
-    Comp.Free;
-    StdIn.Free;
-    StdOut.Free;
-  end;
+  if LoadLZMADLL then
+  begin
+    preset:=get_preset;
+    StdIn := THandleStream.Create(GetStdHandle(STD_INPUT_HANDLE));
+    StdOut := THandleStream.Create(GetStdHandle(STD_OUTPUT_HANDLE));
+    Comp := TXZCompressionStream.Create(StdOut, preset, LZMA_CHECK_CRC64);
+    try
+      Comp.CopyFrom(StdIn, 0);
+    finally
+      Comp.Free;
+      StdIn.Free;
+      StdOut.Free;
+    end;
+    UnloadLZMADLL;
+  end else
+    raise Exception.CreateFmt('%s not found.',[LZMA_DLL]);
 end.

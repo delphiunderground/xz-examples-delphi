@@ -14,7 +14,7 @@ Currently, I do not care of linux compatibility because I had troubles
 with command line FreePascal compiler and when generating Makefile.
 
 Any suggestions or improvements are welcome.
-Send them to vincent.hardy.be@gmail.com
+Send them to vincent.hardy@linuxunderground.be
 
 Homepage: https://github.com/delphiunderground/xz-example-delphi
 
@@ -31,8 +31,8 @@ a gzip-like command line tool named xz and some other tools. XZ Utils
 is developed and maintained by Lasse Collin.
 
 Major parts of liblzma are based on Igor Pavlov's public domain
-[LZMA SDK](http://www.7-zip.org/sdk.html).
+[LZMA SDK](https://www.7-zip.org/sdk.html).
 The SHA-256 implementation is based on the public domain code found from
-[7-Zip](http://www.7-zip.org), which has a modified version of the public
+[7-Zip](https://www.7-zip.org), which has a modified version of the public
 domain SHA-256 code found from [Crypto++](https://www.cryptopp.com).
 The SHA-256 code in Crypto++ was written by Kevin Springle and Wei Dai.
