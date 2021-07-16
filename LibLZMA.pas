@@ -1,6 +1,6 @@
 (*
  * liblzma Data Compression Interface Unit
- * Copyright (C) 2016-2020 Vincent Hardy <vincent.hardy@linuxunderground.be>
+ * Copyright (C) 2016-2021 Vincent Hardy <vincent.hardy@linuxunderground.be>
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version
@@ -57,7 +57,7 @@ type
  * For raw decoding, both LZMA1 and LZMA2 need dict_size, preset_dict, and
  * preset_dict_size (if preset_dict != NULL). LZMA1 needs also lc, lp, and pb.
  *}
-  lzma_options_lzma = packed record
+  lzma_options_lzma = record
     dict_size: uint32_t;
     preset_dict: pointer;
     preset_dict_size: uint32_t;
@@ -91,7 +91,7 @@ type
  * lzma/filter.h (src/liblzma/api/lzma/filter.h in the source package
  * or e.g. c:\xz\include\lzma\filter.h depending on the install prefix).
  *}
-  lzma_filter = packed record
+  lzma_filter = record
     id : lzma_vli;
     options : pointer;
   end;
@@ -103,7 +103,7 @@ type
  * lzma/container.h (src/liblzma/api/lzma/container.h in the source package
  * or e.g. c:\xz\include\lzma\container.h depending on the install prefix).
  *}
-  lzma_mt =  packed record
+  lzma_mt =  record
     flags : uint32_t;
     threads : uint32_t;
     block_size : uint64_t;
@@ -137,7 +137,7 @@ type
   TAlloc = function(opaque: Pointer; Items, Size: size_t): Pointer; cdecl;
   TFree = procedure(opaque, Block: Pointer); cdecl;
 
-  lzma_allocator = packed record
+  lzma_allocator = record
     XZalloc : TAlloc;
     XZfree : TFree;
     opaque : pointer;
@@ -151,7 +151,7 @@ type
  * lzma/base.h (src/liblzma/api/lzma/base.h in the source package
  * or e.g. c:\xz\include\lzma\base.h depending on the install prefix).
  *}
-  lzma_stream = packed record
+  lzma_stream = record
     next_in : PChar;         //Pointer to the next input byte.
     avail_in : size_t;       //Number of available input bytes in next_in.
     total_in : uint64_t;     //Total number of bytes read by liblzma.
